@@ -48,6 +48,15 @@ function finish(path,a,b){
   get('bottom').value=String(b);
   get('use').trigger('click');
   const steps=calculate(a,b,path);
+  if(path==='formal'){
+    const view=get('visual').innerHTML;
+    const questionRule='<div class="vrow factor-rule"><span class="label">×</span>';
+    const answerRule='<div class="vrow rule"><span class="label">= total</span>';
+    assert.ok(view.includes(questionRule),'Horizontal line beneath the multiplier is missing');
+    assert.ok(view.includes(answerRule),'Horizontal line before the final sum is missing');
+    assert.ok(view.indexOf(questionRule)<view.indexOf(answerRule),'Written-method rules are out of order');
+    assert.ok(html.includes('.vrow.factor-rule{border-bottom:2px solid'),'Multiplication separator is not styled');
+  }
   if(path==='area'){
     const view=get('visual').innerHTML;
     assert.ok(view.includes('place-addition'),'Area addition grid missing');
