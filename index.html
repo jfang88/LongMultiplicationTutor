@@ -13,6 +13,21 @@
     @media(max-width:820px){.layout{grid-template-columns:1fr}.side{order:2}.card{padding:16px}.vertical .vrow{grid-template-columns:74px repeat(5,36px)}.vrow{grid-template-columns:74px repeat(5,36px)}}
     @media(max-width:390px){main{padding:14px 10px 55px}.card{padding:12px}.vertical{font-size:1.28rem}.vrow{grid-template-columns:66px repeat(5,34px)}.vrow .label{font-size:10px}.answer-form .field input{width:94px}}
     @media(prefers-reduced-motion:reduce){.progress-inner{transition:none}}
+  
+    .working-list{margin-top:15px;border-top:1px solid #d5e2f1;padding:15px 5px 4px}
+    .working-list h3{font-size:1rem;margin:0 0 5px}.working-list ol{margin:8px 0 12px;padding:0;list-style:none;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+    .working-list li{display:flex;align-items:center;gap:8px;padding:9px 11px;border:1px solid #d7e3ef;border-radius:10px;background:#fbfdff;font-variant-numeric:tabular-nums;min-height:43px}
+    .working-list li.adding-now{background:#fff3d7;border-color:#d9a336}.working-index{color:#677e95;font-size:.84rem}.written-value{font-size:1.06rem;font-weight:800}.waiting-value{color:#a0b0bf;font-weight:400}
+    .add-now,.done-mark{font-size:.74rem;margin-left:auto;white-space:nowrap}.add-now{color:#9b6311}.done-mark{color:#247a58}.running-total{border-radius:12px;background:#e7f4ec;padding:13px;display:flex;gap:12px;justify-content:space-between;align-items:center;flex-wrap:wrap}
+    .running-total>div:first-child{display:grid;gap:4px}.running-total strong{color:#176348;font-size:1.2rem}.running-next{font-weight:700}.record-reminder{font-size:.85rem;color:#43607e;margin:10px 0 0}
+    .vrow .factor-focus{background:#d9ecff;box-shadow:inset 0 0 0 2px #3777c8;font-weight:800}.vrow.carry span:not(.label):not(:empty){background:#fff0bf;border-radius:6px;color:#99580d;font-weight:800}
+    .vrow.carry .carry-incoming{background:#ffcf65!important;box-shadow:0 0 0 2px #c68419;color:#6a3c02!important}
+    .carry-guide{border:1px solid #a9cbed;border-radius:12px;background:#f1f7ff;padding:13px 15px;margin-top:13px;color:#294a6d}.carry-guide h3{font-size:.95rem;margin:0 0 8px}
+    .carry-guide p{font-size:.86rem;margin:9px 0 0;line-height:1.55}.carry-equation{font-size:1.04rem;font-weight:780;color:#173e75}
+    .count-on{display:grid;gap:8px;margin-top:11px;padding:10px;border-radius:9px;background:white;font-size:.84rem}.count-beads{display:flex;flex-wrap:wrap;gap:6px}.count-beads span{background:#ffde88;border:1px solid #c89029;border-radius:999px;padding:4px 8px;font-weight:750;color:#694309}
+    @media(max-width:820px){.layout{grid-template-columns:minmax(0,1fr)}}
+    @media(max-width:390px){.working-list ol{grid-template-columns:1fr}}
+
   </style>
 </head>
 <body>
@@ -234,6 +249,125 @@
   $('use').addEventListener('click',()=>{const a=Number($('top').value),b=Number($('bottom').value);if(!Number.isInteger(a)||a<100||a>999||!Number.isInteger(b)||b<10||b>99){showMessage('Choose a 3-digit number from 100–999 and a 2-digit number from 10–99.','try');return;}newProblem(a,b);});
   $('path').addEventListener('change',()=>newProblem(state.a,state.b));
   $('answer').addEventListener('keydown',e=>{if(e.key==='Enter'&&(!$('carry-box').classList.contains('hidden'))){e.preventDefault();$('carry').focus();}});
+  (function nswEnhancements(){
+  // Keep the original learning pathways, adding a recorded partial-product list and explicit addition practice.
+  const initialGenerateSteps=generateSteps;
+  generateSteps=function(a,b,path){
+    const steps=initialGenerateSteps(a,b,path);
+    const cells=steps.filter(s=>s.phase==='area'&&s.kind==='number');
+    if(!cells.length)return steps;
+    let total=cells[0].expected;
+    const additions=[];
+    for(let i=1;i<cells.length;i++){
+      const previous=total,addend=cells[i].expected;
+      total+=addend;
+      additions.push({phase:'area',kind:'area-add',idx:i,expected:total,
+        question:`Now add ${fmt(addend)} to your running total of ${fmt(previous)}. What do you get?`,
+        why:'Use the list you wrote down. Add one number at a time and tick each one off. Keep the columns lined up by place value.',
+        h1:`Write ${fmt(previous)} above ${fmt(addend)}. Line up the ones, tens, hundreds and thousands before adding.`,
+        h2:`${fmt(previous)} + ${fmt(addend)} = ${fmt(total)}.`});
+    }
+    const last=steps.findLastIndex(s=>s.phase==='area');
+    steps.splice(last+1,0,...additions);
+    return steps;
+  };
+  const initialRenderArea=renderArea;
+  renderArea=function(){
+    let html=initialRenderArea();
+    const cells=state.steps.filter(s=>s.phase==='area'&&s.kind==='number');
+    const additions=state.steps.filter(s=>s.kind==='area-add');
+    const current=state.steps[state.index];
+    html+='<section class="working-list" aria-label="Your six written partial products"><h3>✍️ Write down every answer</h3><p class="small muted">Copy each coloured box into this working list. Use paper too if you like. Don\'t skip a number!</p><ol>';
+    cells.forEach((s,i)=>{
+      const recorded=visible(s),adding=current.kind==='area-add',active=adding&&i===current.idx;
+      const crossed=adding&&(i<current.idx||(active&&state.done[state.index]));
+      html+=`<li class="${active?'adding-now':''}"><span class="working-index">${i+1}.</span><span class="written-value ${!recorded?'waiting-value':''}">${recorded?fmt(s.expected):'________'}</span>${crossed?'<span class="done-mark" aria-label="Already added">✓ added</span>':active?'<strong class="add-now">← add this next</strong>':''}</li>`;
+    });
+    html+='</ol>';
+    if(cells.every(visible)){
+      const completed=additions.filter(visible);
+      const running=completed.length?completed[completed.length-1].expected:cells[0].expected;
+      const isAdding=current.kind==='area-add'&&!state.done[state.index];
+      html+=`<div class="running-total"><div><span class="small muted">Your running total</span><strong>${fmt(running)}</strong></div>${isAdding?`<div class="running-next">+ ${fmt(cells[current.idx].expected)} = <strong>?</strong></div>`:completed.length===additions.length?'<strong>✓ All six numbers added!</strong>':'<span>Start adding at number 2.</span>'}</div>`;
+    }else{
+      html+='<p class="record-reminder">After you fill all six boxes, you will add the six answers together, one by one.</p>';
+    }
+    return html+'</section>';
+  };
+  const initialRenderFormal=renderFormal;
+  renderFormal=function(){
+    let html=initialRenderFormal();
+    const s=state.steps[state.index];
+    if(s.phase!=='formal')return html;
+    const done=state.done[state.index];
+    function focusRow(markup,label,col,cls){
+      const esc=label.replace(/[.*+?^${}()|[\]\\]/g,'\\window.LongMultiplicationTutor={generateSteps,rows};');
+      const re=new RegExp('(<div class="vrow(?: rule)?"><span class="label">'+esc+'<\\/span>)(.*?)(<\\/div>)');
+      return markup.replace(re,(all,start,inner,end)=>{
+        let k=0;
+        return start+inner.replace(/<span class="digit[^\"]*">[^<]*<\/span>/g,cell=>{
+          const highlighted=k++===4-col;
+          return highlighted&&!done?cell.replace('class="digit','class="digit '+cls):cell;
+        })+end;
+      });
+    }
+    if(s.kind==='mul'){
+      html=focusRow(html,'top',s.col,'factor-focus');
+      const mulCarryRe=/(<div class="vrow carry"><span class="label">carry ↑<\/span>)(.*?)(<\/div>)/;
+      html=html.replace(mulCarryRe,(all,start,inner,end)=>{
+        let i=0;
+        return start+inner.replace(/<span>[^<]*<\/span>/g,cell=>i++===4-s.col&&s.carryIn>0&&!done?cell.replace('<span>','<span class="carry-incoming">'):cell)+end;
+      });
+    }
+    if(s.kind==='add'){
+      html=focusRow(html,'× ones',s.col,'factor-focus');
+      html=focusRow(html,'× tens',s.col,'factor-focus');
+      const cells={};
+      state.steps.forEach((step,i)=>{
+        if(step.phase==='formal'&&step.kind==='add'&&state.done[i]&&step.expectedCarry>0)cells[step.col+1]=step.expectedCarry;
+      });
+      let row='<div class="vrow carry"><span class="label">+ carry ↑</span>';
+      for(let pos=4;pos>=0;pos--)row+=`<span class="${!done&&s.carryIn>0&&pos===s.col?'carry-incoming':''}">${cells[pos]??''}</span>`;
+      row+='</div>';
+      html=html.replace('<div class="vrow rule"><span class="label">= total</span>',row+'<div class="vrow rule"><span class="label">= total</span>');
+    }
+    let title='',equation='',notes='',counter='';
+    if(s.kind==='mul'){
+      const base=s.fac*s.digit;
+      title=`Look at the ${place(s.col)} digit on the top row`;
+      equation=`${s.fac} × ${s.digit} = ${base}${s.carryIn?`  ·  then add the carried ${s.carryIn}`:''}`;
+      notes=s.carryIn?`The <b>${s.carryIn}</b> in the gold box sits <b>above the ${place(s.col)} digit</b>. Don't forget to add it!`:'There is no carry coming into this column.';
+      if(s.expectedCarry!==null)notes+=`<br>Write the ones digit on the highlighted row. If there are tens left over, write how many <b>above the ${place(s.col+1)} digit</b> — one column to the left.`;
+      else notes+='<br>This is the last top digit, so write the whole result, including any tens.';
+    }else if(s.kind==='add'){
+      const base=s.x+s.y;
+      title=`Add the ${place(s.col)} column`;
+      equation=`${s.x} + ${s.y} = ${base}${s.carryIn?`  ·  then add the carried ${s.carryIn}`:''}`;
+      notes=s.carryIn?`The <b>${s.carryIn}</b> in the gold box is carried from the previous column. Include it in your addition.`:'No carry comes into this column.';
+      if(s.expectedCarry!==null)notes+=`<br>Write the ones digit in the total. If you have a ten left over, put it above the <b>${place(s.col+1)} column</b> for the next addition.`;
+      else notes+='<br>Write the entire remaining total.';
+    }else{
+      title='Before the tens row, mark the ones place';
+      equation=`${state.a} × ${Math.floor(state.b/10)*10} = ${state.a} × ${Math.floor(state.b/10)} × 10`;
+      notes='The tens row begins with 0 in the ones column. That keeps every digit in the correct place.';
+    }
+    if(s.carryIn>0&&s.kind!=='shift'&&!done){
+      counter=`<div class="count-on"><span>Count on <b>${s.carryIn}</b> more from <b>${s.kind==='mul'?s.fac*s.digit:s.x+s.y}</b>:</span><span class="count-beads">${Array.from({length:s.carryIn},()=>'<span aria-label="count one more">+1</span>').join('')}</span><span>Say each new number aloud. Then enter the answer.</span></div>`;
+    }
+    if(done&&(s.kind==='mul'||s.kind==='add')&&s.expectedCarry>0)notes+=`<br><b>✓ You carried ${s.expectedCarry} one column left, above the ${place(s.col+1)} column.</b>`;
+    return html+`<div class="carry-guide" role="note"><h3>👀 ${title}</h3><div class="carry-equation">${equation}</div><p>${notes}</p>${counter}</div>`;
+  };
+  const initialComplete=complete;
+  complete=function(byReveal){
+    const s=state.steps[state.index];const isLast=state.index===state.steps.length-1;
+    initialComplete(byReveal);
+    if(byReveal||isLast)return;
+    if(s.phase==='area'&&s.kind==='number')showMessage(`Great! Write ${fmt(s.expected)} on line ${state.steps.filter(x=>x.phase==='area'&&x.kind==='number').indexOf(s)+1} of your list. You'll add all six answers together next.`,'good');
+    else if(s.kind==='area-add')showMessage(`Correct! Your running total is ${fmt(s.expected)}. Tick off the number you just added.`,'good');
+    else if((s.kind==='mul'||s.kind==='add')&&s.expectedCarry>0)showMessage(`Correct! Write carry ${s.expectedCarry} above the ${place(s.col+1)} column, one place to the left. Be sure to add it during the next step.`,'good');
+    else if((s.kind==='mul'||s.kind==='add')&&s.carryIn>0)showMessage(`Well done — you included the carried ${s.carryIn} in this column.`,'good');
+  };
+})();
   window.LongMultiplicationTutor={generateSteps,rows};
   newProblem(324,16);
 })();
