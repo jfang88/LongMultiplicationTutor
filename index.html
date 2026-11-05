@@ -28,6 +28,27 @@
     @media(max-width:820px){.layout{grid-template-columns:minmax(0,1fr)}}
     @media(max-width:390px){.working-list ol{grid-template-columns:1fr}}
 
+    /* Six partial products form ONE right-aligned addition problem. */
+    .place-addition{margin:12px auto 4px;max-width:324px;font-variant-numeric:tabular-nums;overflow-x:auto}
+    .place-add-row{display:grid;grid-template-columns:54px repeat(5,minmax(0,1fr));gap:3px;align-items:stretch;margin:3px 0}
+    .place-add-row .row-label{font:750 .77rem/1.2 system-ui,sans-serif;align-self:center;color:#536981;text-align:right;padding-right:6px;white-space:nowrap}
+    .place-add-row .pv-cell{display:flex;align-items:center;justify-content:center;min-width:0;height:34px;border-radius:5px;font:800 1.17rem/1 ui-monospace,SFMono-Regular,Consolas,monospace;color:#243e58}
+    .place-add-row.heading .pv-cell{height:25px;font:750 .69rem/1 system-ui,sans-serif;color:#57728f}
+    .place-add-row.working .pv-cell{background:#f1f6fc;border:1px solid #e0eaf4}
+    .place-add-row.working:nth-of-type(even) .pv-cell{background:#eaf2fb}
+    .place-add-row .pv-cell.highlight{background:#ffedba!important;border:2px solid #d59525!important;color:#644304}
+    .place-add-row .pv-cell.upcoming{color:#9caebf}
+    .place-add-row.carries .pv-cell{font-size:.9rem;color:#915a0e;height:28px}
+    .place-add-row.carries .pv-cell.has-carry{background:#ffe6a7;border:1px solid #d7a134}
+    .place-add-row.answer-line{margin-top:8px;border-top:2px solid #536f90;padding-top:5px}
+    .place-add-row.answer-line .pv-cell{background:#e9f6ee;color:#176647}
+    .place-add-row.answer-line .pv-cell.highlight{background:#ffedba;color:#664600}
+    .place-add-intro{font-size:.91rem;line-height:1.5;color:#405875;margin:7px 0 9px}
+    .place-add-guide{border-radius:11px;background:#eaf3ff;border:1px solid #c5d9f1;padding:11px 13px;margin-top:12px;font-size:.89rem;line-height:1.5;color:#2d4c6c}
+    .place-add-guide p{margin:5px 0}.place-add-guide strong{color:#1b4f87}
+    .place-add-guide .carry-rule{margin-top:8px;font-weight:700;color:#805313}
+    .place-add-check{font-size:.8rem;color:#247b57;margin-top:8px;font-weight:750}
+    @media(max-width:390px){.place-addition{max-width:100%}.place-add-row{grid-template-columns:42px repeat(5,minmax(0,1fr));gap:2px}.place-add-row .pv-cell{height:31px;font-size:1.07rem}.place-add-row.heading .pv-cell{font-size:.62rem}}
   </style>
 </head>
 <body>
@@ -71,10 +92,10 @@
   const $=id=>document.getElementById(id);
   const fmt=n=>Number(n).toLocaleString('en-AU');
   const phaseNames={estimate:'Make an estimate',area:'Area model',expanded:'Expanded multiplication',formal:'Written algorithm',reflect:'Explain your thinking'};
-  const descriptions={estimate:'Make a quick prediction before calculating.',area:'Partition each number and fill in the six areas. Each coloured box is one smaller multiplication.',expanded:'Multiply the whole top number by the ones and tens separately, then combine the products.',formal:'Use the short written steps. Enter the digit to write and the carry when needed.',reflect:'Check that the tens shift makes sense, not just that you remembered a rule.'};
+  const descriptions={estimate:'Make a quick prediction before calculating.',area:'Fill the six area boxes, write every answer in one right-aligned column, then add from ones to ten-thousands with carries.',expanded:'Multiply the whole top number by the ones and tens separately, then combine the products.',formal:'Use the short written steps. Enter the digit to write and the carry when needed.',reflect:'Check that the tens shift makes sense, not just that you remembered a rule.'};
   let state={a:324,b:16,path:'guided',steps:[],index:0,done:[],revealed:[],hintLevel:0,stars:0,celebrated:false};
   const powers=i=>10**i;
-  const place=i=>['ones','tens','hundreds'][i]||'higher';
+  const place=i=>['ones','tens','hundreds','thousands','ten-thousands'][i]||'higher';
   const rows=(a,b)=>[a*(b%10), a*Math.floor(b/10)*10];
   function generateSteps(a,b,path){
     const steps=[],ones=b%10,tens=Math.floor(b/10),partsA=[Math.floor(a/100)*100,Math.floor(a/10)%10*10,a%10];
@@ -212,7 +233,7 @@
     $('question').textContent=s.question;$('explanation').textContent=s.why;
     $('answer-form').classList.toggle('hidden',done);
     $('answer').parentElement.classList.toggle('hidden',s.kind==='choice');$('answer').required=s.kind!=='choice';$('choice-box').classList.toggle('hidden',s.kind!=='choice');$('choice').required=s.kind==='choice';
-    $('carry-box').classList.toggle('hidden',!hasCarry);$('carry').required=hasCarry;
+    $('carry-box').classList.toggle('hidden',!hasCarry);$('carry').required=hasCarry;$('carry-box').querySelector('span').textContent=s.kind==='area-add'?'Carry LEFT (0 if none)':'Carry to next column';
     $('answer-label').textContent=hasCarry?'Digit to write':'Your answer';
     $('answer').value='';$('carry').value='';$('choice').value='';
     $('feedback').innerHTML='';$('hint').classList.toggle('hidden',done);$('reveal').classList.toggle('hidden',done);
@@ -256,18 +277,25 @@
     const steps=initialGenerateSteps(a,b,path);
     const cells=steps.filter(s=>s.phase==='area'&&s.kind==='number');
     if(!cells.length)return steps;
-    let total=cells[0].expected;
-    const additions=[];
-    for(let i=1;i<cells.length;i++){
-      const previous=total,addend=cells[i].expected;
-      total+=addend;
-      additions.push({phase:'area',kind:'area-add',idx:i,expected:total,
-        question:`Now add ${fmt(addend)} to your running total of ${fmt(previous)}. What do you get?`,
-        why:'Use the list you wrote down. Add one number at a time and tick each one off. Keep the columns lined up by place value.',
-        h1:`Write ${fmt(previous)} above ${fmt(addend)}. Line up the ones, tens, hundreds and thousands before adding.`,
-        h2:`${fmt(previous)} + ${fmt(addend)} = ${fmt(total)}.`});
-    }
     const last=steps.findLastIndex(s=>s.phase==='area');
+    const cols=String(a*b).length;
+    let carry=0;
+    const additions=[];
+    // Add all SIX written partial products vertically, working right to left.
+    // Every digit is placed in its actual ones/tens/hundreds/etc column.
+    for(let col=0;col<cols;col++){
+      const digits=cells.map(s=>Math.floor(s.expected/powers(col))%10);
+      const raw=digits.reduce((sum,d)=>sum+d,carry);
+      const final=col===cols-1;
+      const terms=digits.join(' + ')+(carry?' + '+carry+' carried':'');
+      additions.push({phase:'area',kind:'area-add',col,digits,carryIn:carry,
+        expected:final?raw:raw%10,expectedCarry:final?null:Math.floor(raw/10),
+        question:`Add the ${place(col)} column: ${terms}. ${final?'Write the remaining digit.':'Write the ones digit and enter how many tens to carry (0 if none).'}`,
+        why:`Keep the ones digits on the far right and add in columns from RIGHT to LEFT. ${carry?`Remember the ${carry} carried into this column.`:'This column has no incoming carry.'}`,
+        h1:`Look straight down the ${place(col)} column in all six rows. Add ${digits.join(' + ')}${carry?' + '+carry+' carried':''}.`,
+        h2:`The ${place(col)} column totals ${raw}. ${final?`Write ${raw}.`:`Write ${raw%10} under ${place(col)} and carry ${Math.floor(raw/10)} to the next column on the LEFT.`}`});
+      carry=Math.floor(raw/10);
+    }
     steps.splice(last+1,0,...additions);
     return steps;
   };
@@ -277,20 +305,47 @@
     const cells=state.steps.filter(s=>s.phase==='area'&&s.kind==='number');
     const additions=state.steps.filter(s=>s.kind==='area-add');
     const current=state.steps[state.index];
-    html+='<section class="working-list" aria-label="Your six written partial products"><h3>✍️ Write down every answer</h3><p class="small muted">Copy each coloured box into this working list. Use paper too if you like. Don\'t skip a number!</p><ol>';
+    const adding=current.kind==='area-add';
+    const focus=adding?current.col:-1;
+    const placeHeads=['10k','1k','100','10','1'];
+    const digitPositions=[4,3,2,1,0];
+    const row=(label,values,classes='')=>'<div class="place-add-row '+classes+'"><span class="row-label">'+label+'</span>'+values.map(v=>'<span class="pv-cell '+(v.cls||'')+'">'+(v.text??'')+'</span>').join('')+'</div>';
+    const highlight=col=>col===focus?'highlight':'';
+    html+='<section class="working-list" aria-label="Vertically aligned partial products"><h3>✍️ Write down all six answers, one UNDER another</h3>';
+    html+='<p class="place-add-intro"><strong>Line up the digits on the RIGHT.</strong> Ones go under ones, tens under tens, hundreds under hundreds. Do not line up the first digit on the left!</p>';
+    html+='<div class="place-addition" role="group" aria-label="Vertical addition: place-value columns">';
+    html+=row('Place',placeHeads.map(t=>({text:t})),'heading');
+    const carries={};
+    additions.forEach(s=>{if(visible(s)&&s.expectedCarry>0)carries[s.col+1]=s.expectedCarry;});
+    html+=row('Carry ↑',digitPositions.map(col=>({text:carries[col]===undefined?'':String(carries[col]),cls:(carries[col]!==undefined?'has-carry ':'')+highlight(col)})),'carries');
     cells.forEach((s,i)=>{
-      const recorded=visible(s),adding=current.kind==='area-add',active=adding&&i===current.idx;
-      const crossed=adding&&(i<current.idx||(active&&state.done[state.index]));
-      html+=`<li class="${active?'adding-now':''}"><span class="working-index">${i+1}.</span><span class="written-value ${!recorded?'waiting-value':''}">${recorded?fmt(s.expected):'________'}</span>${crossed?'<span class="done-mark" aria-label="Already added">✓ added</span>':active?'<strong class="add-now">← add this next</strong>':''}</li>`;
+      const recorded=visible(s);
+      const digits=String(s.expected);
+      html+=row(i===0?'1':'+ '+(i+1),digitPositions.map(col=>({
+        text:recorded?(col<digits.length?digits[digits.length-1-col]:''):(col===0?'?':''),
+        cls:(col===focus?'highlight ':'')+(!recorded?'upcoming':'')
+      })),'working');
     });
-    html+='</ol>';
-    if(cells.every(visible)){
-      const completed=additions.filter(visible);
-      const running=completed.length?completed[completed.length-1].expected:cells[0].expected;
-      const isAdding=current.kind==='area-add'&&!state.done[state.index];
-      html+=`<div class="running-total"><div><span class="small muted">Your running total</span><strong>${fmt(running)}</strong></div>${isAdding?`<div class="running-next">+ ${fmt(cells[current.idx].expected)} = <strong>?</strong></div>`:completed.length===additions.length?'<strong>✓ All six numbers added!</strong>':'<span>Start adding at number 2.</span>'}</div>`;
+    const written={};
+    additions.forEach(s=>{if(visible(s))written[s.col]=String(s.expected);});
+    html+=row('= Total',digitPositions.map(col=>({
+      text:written[col]??(col===focus?'?':''),cls:highlight(col)
+    })),'answer-line');
+    html+='</div>';
+    if(adding){
+      const digits=current.digits;
+      const incoming=current.carryIn;
+      html+=`<div class="place-add-guide"><strong>👀 Work from the RIGHT: the ${place(current.col)} column</strong>`;
+      html+=`<p>Add the six digits straight down: <b>${digits.join(' + ')}</b>${incoming?` <b>+ ${incoming} carried</b>`:''}.</p>`;
+      if(incoming)html+=`<p>🟡 The carry of ${incoming} is written <b>above this column</b>. Count it too!</p>`;
+      if(current.expectedCarry===null)html+='<p>Write the final digit under this column.</p>';
+      else html+='<p class="carry-rule">Write only the ones digit below. If the column total is 10 or more, write the extra tens <b>above the next column to the LEFT</b> (0 if none).</p>';
+      if(visible(current))html+=`<div class="place-add-check">✓ ${place(current.col)} column done${current.expectedCarry>0?` — carry ${current.expectedCarry} one column left`:''}.</div>`;
+      html+='</div>';
+    }else if(cells.every(visible)&&additions.every(visible)){
+      html+='<p class="place-add-check">✓ All six numbers are lined up and every column has been added.</p>';
     }else{
-      html+='<p class="record-reminder">After you fill all six boxes, you will add the six answers together, one by one.</p>';
+      html+='<p class="record-reminder">As you solve each coloured rectangle, copy its answer into the matching row above. When all six are filled, add from the ones column on the far RIGHT.</p>';
     }
     return html+'</section>';
   };
@@ -301,7 +356,7 @@
     if(s.phase!=='formal')return html;
     const done=state.done[state.index];
     function focusRow(markup,label,col,cls){
-      const esc=label.replace(/[.*+?^${}()|[\]\\]/g,'\\window.LongMultiplicationTutor={generateSteps,rows};');
+      const esc=label.replace(/[.*+?^${}()|[\]\\]/g,'\\      const esc=label.replace(/[.*+?^${}()|[\]\\]/g,'\\window.LongMultiplicationTutor={generateSteps,rows};');');
       const re=new RegExp('(<div class="vrow(?: rule)?"><span class="label">'+esc+'<\\/span>)(.*?)(<\\/div>)');
       return markup.replace(re,(all,start,inner,end)=>{
         let k=0;
@@ -362,8 +417,8 @@
     const s=state.steps[state.index];const isLast=state.index===state.steps.length-1;
     initialComplete(byReveal);
     if(byReveal||isLast)return;
-    if(s.phase==='area'&&s.kind==='number')showMessage(`Great! Write ${fmt(s.expected)} on line ${state.steps.filter(x=>x.phase==='area'&&x.kind==='number').indexOf(s)+1} of your list. You'll add all six answers together next.`,'good');
-    else if(s.kind==='area-add')showMessage(`Correct! Your running total is ${fmt(s.expected)}. Tick off the number you just added.`,'good');
+    if(s.phase==='area'&&s.kind==='number')showMessage(`Great! Copy ${fmt(s.expected)} into row ${state.steps.filter(x=>x.phase==='area'&&x.kind==='number').indexOf(s)+1}. Keep its ones digit in the far-right column.`,'good');
+    else if(s.kind==='area-add')showMessage(`Correct! Write ${s.expected} in the ${place(s.col)} column.${s.expectedCarry>0?` Carry ${s.expectedCarry} above the ${place(s.col+1)} column on the LEFT.`:' No carry is needed.'}`,'good');
     else if((s.kind==='mul'||s.kind==='add')&&s.expectedCarry>0)showMessage(`Correct! Write carry ${s.expectedCarry} above the ${place(s.col+1)} column, one place to the left. Be sure to add it during the next step.`,'good');
     else if((s.kind==='mul'||s.kind==='add')&&s.carryIn>0)showMessage(`Well done — you included the carried ${s.carryIn} in this column.`,'good');
   };
