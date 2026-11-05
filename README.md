@@ -11,6 +11,8 @@ Open [`index.html`](index.html) in any modern browser (works offline), or publis
 - Guided pathway: estimate → six-cell area model → expanded partial products → written algorithm with real carrying → explain the tens shift.
 - Focused modes for practising area models, expanded multiplication, or the written method alone.
 - Starter, practice and challenge question generators, with custom 3-digit × 2-digit input.
+- Area-model working list records each of the six smaller products, then practises adding all six with a running total and check-off cues.
+- Written-method guidance highlights the active digit and the exact column where carries sit, with count-on prompts for carried values.
 - Hints, step-by-step checking, carry boxes, place-value cues, rewards and responsive layout.
 - No dependencies, account, tracking, network requests or external assets.
 
