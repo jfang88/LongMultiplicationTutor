@@ -356,8 +356,8 @@
     if(s.phase!=='formal')return html;
     const done=state.done[state.index];
     function focusRow(markup,label,col,cls){
-      const esc=label.replace(/[.*+?^${}()|[\]\\]/g,'\\      const esc=label.replace(/[.*+?^${}()|[\]\\]/g,'\\window.LongMultiplicationTutor={generateSteps,rows};');');
-      const re=new RegExp('(<div class="vrow(?: rule)?"><span class="label">'+esc+'<\\/span>)(.*?)(<\\/div>)');
+      // Labels are fixed: "top", "× ones", "× tens"; no dynamic regex escaping needed.
+      const re=new RegExp('(<div class="vrow(?: rule)?"><span class="label">'+label+'<\\/span>)(.*?)(<\\/div>)');
       return markup.replace(re,(all,start,inner,end)=>{
         let k=0;
         return start+inner.replace(/<span class="digit[^\"]*">[^<]*<\/span>/g,cell=>{
